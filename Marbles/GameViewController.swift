@@ -233,7 +233,9 @@ class GameViewController : UIViewController {
             //physics.mass = 1
             physics.isAffectedByGravity = true
             physics.friction = 1
-            physics.restitution = 5
+            physics.restitution = 2.5
+            physics.mass = 3
+            
             
             sphere.geometry?.firstMaterial = material
             sphere.position = cameraNode.position
