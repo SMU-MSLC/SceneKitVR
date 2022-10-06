@@ -102,21 +102,30 @@ class GameViewController : UIViewController {
                 if (self.initialAttitude == nil)
                 {
                     // save initial orientaton of phone
+                    // this is a reference point, we could also set these
+                    // manually, assuming a starting phone orientation
                     self.initialAttitude = (deviceMotion.attitude.roll,
                                             deviceMotion.attitude.pitch,
                                             deviceMotion.attitude.yaw)
                 }
                 
-                // update camera angle based upon the difference to original position
-                let pitch = Float(self.initialAttitude!.pitch - deviceMotion.attitude.pitch)
-                let yaw = Float(self.initialAttitude!.yaw - deviceMotion.attitude.yaw)
+                if let initialAttitude = self.initialAttitude{
+                    // update camera angle based upon the difference to original position
+                    let pitch = Float(initialAttitude.pitch - deviceMotion.attitude.pitch)
+                    let yaw = Float(initialAttitude.yaw - deviceMotion.attitude.yaw)
+                    
+                    // euler angles define rotation of rigid body
+                    // the x,y,z angles correspond to pitch, yaw, and roll, respectively
+                    // so this code will adjust the camera view in response to phone position
+                    self.cameraNode.eulerAngles.x = -pitch
+                    self.cameraNode.eulerAngles.y = -yaw
+                }
                 
-                self.cameraNode.eulerAngles.x = -pitch 
-                self.cameraNode.eulerAngles.y = -yaw
 
+                // here we setup the gravity in the world to update with the phone
                 self.scene.physicsWorld.gravity.x =  Float(deviceMotion.gravity.x)*9.8
                 self.scene.physicsWorld.gravity.y =  Float(deviceMotion.gravity.y)*9.8
-                self.scene.physicsWorld.gravity.z =  Float(deviceMotion.gravity.z)*9.8
+                self.scene.physicsWorld.gravity.z = -9.8 // always have gravity down //Float(deviceMotion.gravity.z)*9.8
                 
             }
             
@@ -128,30 +137,39 @@ class GameViewController : UIViewController {
     func addLivingRoom(){
         
         guard let sceneView = sceneView else {
-            return
+            fatalError("Fatal Error, could not capture scene view")
         }
         
         // Setup Original Scene
         scene = SCNScene()
 
         // load living room model we created in sketchup
-        let room = SCNScene(named: "Room.scn")!
+        guard let room = SCNScene(named: "Room.scn") else {
+            fatalError("Could not load room scene")
+        }
         
-        room.physicsWorld.gravity = SCNVector3(x: 0, y: 0, z: -9.8)
-
-        // add custom texture to the TV in scene
-        let material = SCNMaterial()
-        material.diffuse.contents = UIImage(named: imageToShow)
-        let TV = room.rootNode.childNode(withName: "screen", recursively: true)!
-        TV.geometry?.firstMaterial = material
-        
+        // load the root node (the living room) from the room scene as a child
         scene.rootNode.addChildNode(room.rootNode.childNode(withName: "SketchUp", recursively: true)!)
-        scene.rootNode.addChildNode(TV)
+        //room.physicsWorld.gravity = SCNVector3(x: 0, y: 0, z: -9.8)
+
+        // add custom texture to the TV in scene, if we have the texture pack
+        if let TV = room.rootNode.childNode(withName: "screen", recursively: true),
+            let image = UIImage(named: imageToShow)
+        {
+            let material = SCNMaterial()
+            material.diffuse.contents = image
+            TV.geometry?.firstMaterial = material
+            scene.rootNode.addChildNode(TV)
+        }
         
         // Setup camera position from existing scene
-        cameraNode = room.rootNode.childNode(withName: "camera", recursively: true)!
-        scene.rootNode.addChildNode(cameraNode)
+        guard let cameraNode = room.rootNode.childNode(withName: "camera", recursively: true) else{
+            fatalError("Fatal Error, could not load camera from scene")
+        }
+        self.cameraNode = cameraNode
+        scene.rootNode.addChildNode(self.cameraNode)
         
+        // add lighting from the room scene
         if let lighting = room.rootNode.childNode(withName: "Lighting", recursively: true){
                 scene.rootNode.addChildNode(lighting)
             }
@@ -180,7 +198,9 @@ class GameViewController : UIViewController {
         updating = true // prevent from tapping wildly
         
         // what did the user tap? Anything?
+        // 1. get 2D location in view
         let tapLocation = sender.location(in: sceneView)
+        // 2. test if this hits any nodes in the room scene, in 3D
         let hitTestResults = sceneView.hitTest(tapLocation)
         
         // setup a recurrsion for finding in the parent
@@ -220,33 +240,36 @@ class GameViewController : UIViewController {
             self.updating = false
             
             // add sphere to the world to make things harder
-            //let sphere = SCNNode(geometry: SCNCylinder(radius: 5, height: 3))
-            let sphere = SCNNode(geometry: SCNSphere(radius: 5))
-            
-            let material = SCNMaterial()
-            material.diffuse.contents = UIColor.red
-            
-            //let physics = SCNPhysicsBody()
-            let physics = SCNPhysicsBody(type: .dynamic,
-                                         shape:SCNPhysicsShape(geometry: sphere.geometry!, options:nil))
-            //physics.type = .dynamic
-            //physics.mass = 1
-            physics.isAffectedByGravity = true
-            physics.friction = 1
-            physics.restitution = 2.5
-            physics.mass = 3
-            
-            
-            sphere.geometry?.firstMaterial = material
-            sphere.position = cameraNode.position
-            sphere.physicsBody = physics
-            
-            
-            
-            scene.rootNode.addChildNode(sphere)
+            addBall()
             
         }
         
+    }
+    
+    func addBall(){
+        //let sphere = SCNNode(geometry: SCNCylinder(radius: 5, height: 3))
+        let sphere = SCNNode(geometry: SCNSphere(radius: 5))
+        
+        // add a red ball
+        let material = SCNMaterial()
+        material.diffuse.contents = UIColor.red
+        
+        // that can bounce around the room environment
+        let physics = SCNPhysicsBody(type: .dynamic,
+                                     shape:SCNPhysicsShape(geometry: sphere.geometry!, options:nil))
+
+        physics.isAffectedByGravity = true
+        physics.friction = 1
+        physics.restitution = 2.5
+        physics.mass = 3
+        
+        
+        sphere.geometry?.firstMaterial = material
+        sphere.position = cameraNode.position
+        sphere.physicsBody = physics
+
+        
+        scene.rootNode.addChildNode(sphere)
     }
 	
     func displayBriefly(_ text:String){
