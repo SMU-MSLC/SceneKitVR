@@ -150,7 +150,6 @@ class GameViewController : UIViewController {
         
         // load the root node (the living room) from the room scene as a child
         scene.rootNode.addChildNode(room.rootNode.childNode(withName: "SketchUp", recursively: true)!)
-        //room.physicsWorld.gravity = SCNVector3(x: 0, y: 0, z: -9.8)
 
         // add custom texture to the TV in scene, if we have the texture pack
         if let TV = room.rootNode.childNode(withName: "screen", recursively: true),
