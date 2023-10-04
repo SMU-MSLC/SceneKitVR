@@ -281,7 +281,37 @@ class GameViewController : UIViewController {
             self.middleLabel.text = ""
         }
     }
-
+    
+    
+    @IBAction func downPressed(_ sender: UIButton) {
+        // move camera backwards in livving room
+        
+        var moveAction:SCNAction
+        
+        switch sender.titleLabel?.text{
+        case "⬇️":
+            // backwards
+            moveAction = SCNAction.moveBy(x: 0, y: 0.0, z: 10, duration: 0.25)
+        case "⬆️":
+            // forwards
+            moveAction = SCNAction.moveBy(x: 0, y: 0.0, z: -10, duration: 0.25)
+        case "⬅️":
+            // left
+            moveAction = SCNAction.moveBy(x: -10, y: 0.0, z: 0, duration: 0.25)
+        case "➡️":
+            // right
+            moveAction = SCNAction.moveBy(x: 10, y: 0.0, z: 0, duration: 0.25)
+        case .none:
+            // backwards
+            moveAction = SCNAction.moveBy(x: 0, y: 0.0, z: 0, duration: 0.25)
+        case .some(_):
+            // backwards
+            moveAction = SCNAction.moveBy(x: 0, y: 0.0, z: 0, duration: 0.25)
+        }
+        
+        cameraNode.runAction(moveAction)
+    }
+    
 }
 
 
